@@ -277,6 +277,33 @@
             overflow: hidden;
             margin-top: 10px;
         }
+
+        .ui-buttons {
+            position: fixed;
+            bottom: 3vh;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 2vw;
+            z-index: 9999;
+            pointer-events: auto;
+        }
+
+        .ui-buttons button {
+            background-color: rgba(0, 0, 0, 0.5);
+            color: #fb7c00;
+            border: none;
+            padding: 1vh 2vh;
+            font-size: 1.5vh;
+            border-radius: 0.5vh;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .ui-buttons button:hover {
+            background-color: rgba(0, 0, 0, 0.8);
+        }
     </style>
 </head>
 
@@ -705,6 +732,24 @@
 
 
 
+    </script>
+    <div class="ui-buttons">
+        <button id="about-button">aj300</button>
+        <button id="fullscreen-button">fullscreen</button>
+    </div>
+
+    <script>
+        document.getElementById("fullscreen-button").addEventListener("click", () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                document.exitFullscreen();
+            }
+        });
+
+        document.getElementById("about-button").addEventListener("click", () => {
+            window.open("https://aj300542.github.io/", "_blank");
+        });
     </script>
 </body>
 
