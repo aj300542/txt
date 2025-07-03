@@ -22,7 +22,7 @@
             justify-content: center;
             gap: 2vh;
             position: absolute;
-            top: 5vh;
+            top: 15vh;
             left: 50%;
             transform: translateX(-50%);
             padding: 3vh;
@@ -168,18 +168,137 @@
             color: #2a8a2a;
             transition: background-color 0.5s ease;
         }
+
+        .fade-in {
+            opacity: 0;
+            transition: opacity 1s ease-in;
+        }
+
+        .fade-in.show {
+            opacity: 1;
+        }
+
+        .skipped-char {
+            opacity: 0.3;
+            color: gray;
+            text-decoration: line-through;
+        }
+
+        #fileInput {
+            position: absolute;
+            left: 5vh;
+            top: 5vh;
+            z-index: 99;
+        }
+
+        #scoreBoard {
+            color: darkgray;
+            font-weight: bold;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 10vh;
+            opacity: 0.5;
+        }
+
+        #comboCounter {
+            color: rgb(1, 255, 255);
+            font-weight: bold;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 5vh;
+
+        }
+
+        #completionNotice {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 10vh;
+            font-weight: bold;
+            color: #222;
+            /* 可根据背景调整颜色 */
+            background: rgba(255, 255, 255, 0.9);
+            /* 半透明背景可选 */
+            padding: 1em 2em;
+            border-radius: 2vh;
+            z-index: 9999;
+            text-align: center;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.6s ease;
+        }
+
+        #completionNotice.show {
+            opacity: 1;
+        }
+
+        #fileList {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.04);
+            padding: 3vh;
+            border-radius: 1vh;
+            max-height: 90vh;
+            position: fixed;
+            left: 5vh;
+            top: 10vh;
+            width: 8vh;
+        }
+
+        #fileList button {
+            display: block;
+            width: 100%;
+            margin-bottom: 2vh;
+            /* 👉 按钮之间的距离 */
+            padding: 2vh 0;
+            background-color: #333;
+            /* 👉 按钮背景颜色 */
+            color: #39ff14;
+            /* 👉 按钮文字颜色 */
+            border: none;
+            border-radius: 1vh;
+            font-size: 2vh;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        #fileList button:hover {
+            background-color: #555;
+            /* 👉 鼠标悬停时变色 */
+        }
+
+        #comboCanvas {
+            position: absolute;
+            top: 1vh;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.04);
+            overflow-y: scroll;
+            width: 70vh;
+            height: 10vh;
+            overflow: hidden;
+            margin-top: 10px;
+        }
     </style>
 </head>
 
 <body>
-    <div id="retainedZone"></div>
+
+    <canvas id="comboCanvas"></canvas>
+
+    <div id="retainedZone"></div>嗯
     <div id="scrollControl">
         <div id="scrollThumb"></div>
     </div>
     <input id="input" placeholder="输入字…" autocomplete="off" autofocus />
-    <div id="comboCounter">Combo ×0</div>
+    <div id="comboCounter"></div>
     <div id="scoreBoard">0</div>
+    <input type="file" id="fileInput" accept=".txt" />
+    <div id="completionNotice" class="fade-in" style="display: none;">
+        🎉 任务完成！
+    </div>
+    <div id="fileList"></div>
 
+    <script src="txt/similarWordMap.js"></script>
+    <script src="txt/similarCharMap.js"></script>
     <script>
         const retainedZone = document.getElementById('retainedZone');
         const input = document.getElementById('input');
@@ -190,6 +309,9 @@
 
         let currentStartIndex = 0;
 
+        const map = window.similarCharMap;
+
+        let comboHistory = []; // 储存 combo 曲线数据
 
 
         let composing = false;
@@ -201,51 +323,182 @@
         input.addEventListener('compositionend', () => { composing = false; handleInput(); });
         input.addEventListener('input', () => { if (!composing) handleInput(); });
 
+        const fileInput = document.getElementById('fileInput');
+
+        const fileNames = ['sample1.txt', 'sample2.txt', 'sample3.txt']; // 🔁 自行替换成你的实际文件名
+
+        const fileListDiv = document.getElementById('fileList');
+
+        fileNames.forEach(name => {
+            const btn = document.createElement('button');
+            btn.textContent = name.replace('.txt', '');
+            btn.style.display = 'block';
+            btn.style.marginBottom = '6px';
+            btn.style.width = '100%';
+            btn.addEventListener('click', () => loadTextFile(name));
+            fileListDiv.appendChild(btn);
+        });
+
+        function loadTextFile(filename) {
+            fetch(`txt/${filename}`)
+                .then(resp => resp.text())
+                .then(text => {
+                    const cleaned = toHalfWidth(text)
+                        .replace(/[^\u4e00-\u9fa5a-zA-Z0-9\s]/g, '')
+                        .split(/\s+/)
+                        .flatMap(w => /^[a-zA-Z0-9]+$/.test(w) ? [w] : [...w])
+                        .filter(Boolean);
+                    wordPool = cleaned;
+                    currentStartIndex = 0;
+                    retainedZone.innerHTML = '';
+                    updateRetainedZone(0);
+                    score = 0;
+                    combo = 0;
+                    comboHistory = [];
+                    scoreBoard.textContent = '0';
+                    comboCounter.textContent = 'Combo ×0';
+                    console.log(`✅ 词库 [${filename}] 已载入，共 ${wordPool.length} 个元素`);
+                });
+        }
+
+        function toHalfWidth(str) {
+            return str.replace(/[\uFF01-\uFF5E]/g, ch =>
+                String.fromCharCode(ch.charCodeAt(0) - 0xFEE0)
+            ).replace(/\u3000/g, ' '); // 全角空格→半角空格
+        }
+
+
+        fileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const text = toHalfWidth(e.target.result);
+                wordPool = text
+                    .replace(/[^\u4e00-\u9fa5a-zA-Z0-9\s]/g, '')
+                    .split(/\s+/)
+                    .flatMap(w => /^[a-zA-Z0-9]+$/.test(w) ? [w] : [...w])
+                    .filter(Boolean);
+
+                retainedZone.innerHTML = '';
+                updateRetainedZone(0); // 👈 显示从 0 开始的 150 个字符
+
+            };
+            reader.readAsText(file, 'utf-8');
+        });
+
+        function getNextUnmatchedIndex() {
+            const spans = retainedZone.querySelectorAll('span');
+            return [...spans].findIndex(
+                span => !span.classList.contains('matched-char') && !span.classList.contains('skipped-char')
+            );
+        }
+
         function handleInput() {
-            let typed = input.value.trim();
+            let typed = input.value;
             if (!typed) return;
 
             const toRemove = [];
 
-            for (const char of typed) {
-                if (matchRetained(char)) {
-                    toRemove.push(char);
+            for (let i = 0; i < typed.length - 1; i++) {
+                const bigram = typed.substring(i, i + 2);
+                const nextIndex = getNextUnmatchedIndex();
+                if (matchRetained(bigram, nextIndex)) {
+                    toRemove.push(bigram);
+                    typed = typed.slice(0, i) + typed.slice(i + 2);
+                    i = -1; // reset loop
+                }
+            }
+
+            for (const ch of typed) {
+                const nextIndex = getNextUnmatchedIndex();
+                if (matchRetained(ch, nextIndex)) {
+                    toRemove.push(ch);
                 }
             }
 
             if (toRemove.length) {
-                // 保留原始输入，延迟两秒后清理已匹配字符
                 setTimeout(() => {
-                    let currentValue = input.value;
-                    toRemove.forEach(c => {
-                        currentValue = currentValue.replace(c, '');
+                    let cur = input.value;
+                    toRemove.forEach(tok => {
+                        cur = cur.replace(tok, '');
                     });
-                    input.value = currentValue;
+                    input.value = cur;
                 }, 10000);
             }
         }
 
+        function isWordMatch(inputWord, targetWord) {
+            if (inputWord === targetWord) return true;
+            return (
+                window.similarWordMap?.[targetWord]?.includes(inputWord) ||
+                window.similarWordMap?.[inputWord]?.includes(targetWord)
+            );
+        }
 
-        function matchRetained(char) {
-            const spans = [...retainedZone.querySelectorAll('span')];
-            const nextTarget = spans.find(s => !s.classList.contains('matched-char'));
 
-            // 如果下一个目标刚好是输入的字符，则匹配成功
-            if (nextTarget && nextTarget.dataset.char === char) {
-                nextTarget.classList.add('matched-char');
-                updateScore(10);
-                requestAnimationFrame(() => checkLineBreak());
+        function matchRetained(inputText, index) {
+            const spans = retainedZone.querySelectorAll('span');
+            const span1 = spans[index];
+            const span2 = spans[index + 1];
+            if (!span1 || span1.classList.contains('matched-char')) return false;
+
+            const char1 = span1.dataset.char || span1.textContent;
+            const char2 = span2?.dataset.char || span2?.textContent || '';
+            const combined = char1 + char2;
+
+            const isExact = inputText === char1;
+            const isCharSimilar = window.similarCharMap?.[char1]?.includes(inputText);
+            const isWordSimilar = isWordMatch?.(inputText, char1);
+            const isComboWordMatch = isWordMatch?.(inputText, combined);
+
+            // ✅ 字符级或词语一级命中（单字）
+            if (isExact || isCharSimilar || isWordSimilar) {
+                span1.classList.add('matched-char');
+                updateScore(isExact ? 10 : 5);
+                combo++;
+                updateComboDisplay();
+                requestAnimationFrame(checkLineBreak);
                 return true;
             }
 
-            // 匹配失败，重置连击
+            // ✅ 连续两个字拼成词语时，触发词语模糊命中（如“茂物”←“贸易”）
+            if (isComboWordMatch && span2 && !span2.classList.contains('matched-char')) {
+                span1.classList.add('matched-char');
+                span2.classList.add('matched-char');
+                updateScore(6); // 词语模糊得分
+                combo++;
+                updateComboDisplay();
+                requestAnimationFrame(checkLineBreak);
+                return true;
+            }
+
+            // 🌟 跳字策略（单字跳跃）
+            const span3 = spans[index + 2];
+            const char3 = span3?.dataset.char || span3?.textContent || '';
+            const skipMatch =
+                inputText === char2 ||
+                window.similarCharMap?.[char2]?.includes(inputText) ||
+                isWordMatch?.(inputText, char2);
+
+            if (skipMatch && span2 && !span2.classList.contains('matched-char')) {
+                span1.classList.add('skipped-char');
+                span2.classList.add('matched-char');
+                updateScore(5);
+                combo++;
+                updateComboDisplay();
+                requestAnimationFrame(checkLineBreak);
+                return true;
+            }
+
             combo = 0;
             updateComboDisplay();
             return false;
         }
-
-
+        let isProcessingLineBreak = false; // 全局变量
         function checkLineBreak() {
+            if (isProcessingLineBreak) return; // ⚠️ 避免重复触发
             const allSpans = [...retainedZone.querySelectorAll('span')];
             const lines = [];
 
@@ -254,22 +507,55 @@
             }
 
             const fullLine = lines.find(line =>
-                line.length === 16 && line.every(s => s.classList.contains('matched-char'))
+                line.length === 16 && line.every(s =>
+                    s.classList.contains('matched-char') || s.classList.contains('skipped-char')
+                )
             );
-
             if (fullLine) {
+                isProcessingLineBreak = true; // 锁住
                 fullLine.forEach(span => span.classList.add('flash-out'));
+
                 setTimeout(() => {
                     fullLine.forEach(span => span.remove());
+
+                    updateScore(160 + combo * 20);
+                    combo++;
+                    updateComboDisplay();
+                    const maxStart = Math.max(0, wordPool.length - maxChars);
+                    if (currentStartIndex + 16 <= maxStart) {
+                        currentStartIndex += 16;
+                        updateRetainedZone(currentStartIndex);
+                        const percent = currentStartIndex / (wordPool.length - maxChars);
+                        setByPercent(percent);
+                    } else {
+
+                        appendNextLineToRetainedZone(); // 👈 只在最后一页时执行补充
+                        const allMatched = [...retainedZone.querySelectorAll('span')]
+                            .every(span => span.classList.contains('matched-char') || span.classList.contains('skipped-char'));
+
+                        if (allMatched && finalLineIndex >= wordPool.length) {
+                            showCompletionNotice();
+                        }
+                    }
+                    isProcessingLineBreak = false;
                 }, 600);
 
-                updateScore(160 + combo * 20);
-                combo++;
-                updateComboDisplay();
-
-                fillRetainedZone();
             }
         }
+
+        function showCompletionNotice() {
+            const notice = document.getElementById('completionNotice');
+            if (notice) {
+                notice.style.display = 'block';
+                setTimeout(() => notice.classList.add('show'), 500);
+                setTimeout(() => {
+                    notice.classList.remove('show');
+                    setTimeout(() => notice.style.display = 'none', 10000);
+                }, 5000);
+            }
+        }
+
+
 
         function updateScore(value) {
             score += value;
@@ -282,51 +568,57 @@
                 comboCounter.classList.add('combo-active');
                 setTimeout(() => comboCounter.classList.remove('combo-active'), 500);
             } else {
-                comboCounter.textContent = 'Combo ×0';
+                comboCounter.textContent = '✔️';
             }
         }
 
         let wordPool = [];
 
-        fetch('./txt/word.txt')
-            .then(res => res.ok ? res.text() : Promise.reject('加载失败'))
-            .then(text => {
-                wordPool = text
-                    .replace(/[^\u4e00-\u9fa5a-zA-Z\s]/g, '')
-                    .split(/\s+/)
-                    .flatMap(w => /^[a-zA-Z]+$/.test(w) ? [w] : [...w])
-                    .filter(Boolean);
-
-                fillRetainedZone();
-            })
-            .catch(err => {
-                alert('❌ 无法加载词库文件：' + err);
-            });
-
-        function fillRetainedZone() {
-            while (retainedZone.querySelectorAll('span').length < maxChars && wordPool.length) {
-                const char = wordPool.shift();
-                const span = document.createElement('span');
-                span.textContent = char;
-                span.dataset.char = char;
-                retainedZone.appendChild(span);
-            }
-        }
 
         let isDragging = false;
 
         function updateRetainedZone(startIndex) {
             currentStartIndex = startIndex;
-            retainedZone.innerHTML = '';
 
             const chunk = wordPool.slice(startIndex, startIndex + maxChars);
-            chunk.forEach(char => {
+
+            retainedZone.replaceChildren(
+                ...chunk.map(char => {
+                    const span = document.createElement('span');
+                    span.textContent = char;
+                    span.dataset.char = char;
+                    return span;
+                })
+            );
+
+            // 👇 动态设置 finalLineIndex，每次加载页面时准确重置
+            finalLineIndex = startIndex + chunk.length;
+        }
+
+
+        let finalLineIndex = currentStartIndex;
+
+
+        function appendNextLineToRetainedZone() {
+            if (finalLineIndex >= wordPool.length) return;
+
+            const nextChars = wordPool.slice(
+                finalLineIndex,
+                Math.min(finalLineIndex + 16, wordPool.length) // ✅ 防止 slice 越界
+            );
+
+            nextChars.forEach(char => {
                 const span = document.createElement('span');
                 span.textContent = char;
                 span.dataset.char = char;
                 retainedZone.appendChild(span);
             });
+
+            finalLineIndex += 16; // 🔁 更新下次追加起点
         }
+
+
+
 
         // 初始化：设置滑块高度
         scrollThumb.style.height = `${(maxChars / wordPool.length) * 100}%`;
@@ -363,6 +655,53 @@
         document.addEventListener('mouseup', () => {
             isDragging = false;
         });
+
+        function updateComboDisplay() {
+            if (combo > 0) {
+                comboCounter.textContent = `Combo ×${combo}`;
+                comboCounter.classList.add('combo-active');
+                comboHistory.push(combo);
+
+                if (comboHistory.length % 2 === 0) {
+                    renderComboCanvas(); // 🖌️ 渲染 Canvas 图
+                }
+
+                setTimeout(() => comboCounter.classList.remove('combo-active'), 500);
+            } else {
+                comboCounter.textContent = 'Combo ×0';
+                comboHistory.push(0);
+
+                if (comboHistory.length % 2 === 0) {
+                    renderComboCanvas();
+                }
+            }
+        }
+
+        function renderComboCanvas() {
+            const canvas = document.getElementById('comboCanvas');
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width;
+            const h = canvas.height;
+
+            ctx.clearRect(0, 0, w, h); // 清空画布
+
+            const barWidth = 4; // 每条柱子宽度
+            const gap = 1;      // 柱子之间间隔
+            const visibleBars = Math.floor(w / (barWidth + gap));
+            const visibleHistory = comboHistory.slice(-visibleBars);
+            const maxCombo = Math.max(...visibleHistory, 1); // 防止除以 0
+
+            visibleHistory.forEach((value, i) => {
+                const barHeight = (value / maxCombo) * h;
+                const x = i * (barWidth + gap);
+                const y = h - barHeight;
+
+                // 🎨 色彩映射：高 combo 越红，低 combo 越蓝
+                const hue = Math.min(120 + value * 5, 360);
+                ctx.fillStyle = `hsl(${hue}, 80%, 60%)`;
+                ctx.fillRect(x, y, barWidth, barHeight);
+            });
+        }
 
 
 
