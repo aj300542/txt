@@ -305,6 +305,19 @@
         .ui-buttons button:hover {
             background-color: rgba(0, 0, 0, 0.8);
         }
+        .cover-small {
+            position: absolute;
+            top: 46vh;
+            left: 2vh;
+            width:25vh;
+            height: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0 auto;
+            border-radius: 3vh;
+            overflow: hidden;
+        }
     </style>
 </head>
 
@@ -324,6 +337,11 @@
         🎉 任务完成！
     </div>
     <div id="fileList"></div>
+    <div class="cover-small">
+        <a href="txt/三傻.epub" download="三傻.epub">
+            <img src="txt/cover-small.jpg" alt="点击下载" />
+        </a>
+    </div>
 
     <script src="txt/similarWordMap.js"></script>
     <script src="txt/similarCharMap.js"></script>
