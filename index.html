@@ -353,7 +353,7 @@
 
         const fileInput = document.getElementById('fileInput');
 
-        const fileNames = ['sample1.txt', 'sample2.txt', 'sample3.txt']; // 🔁 自行替换成你的实际文件名
+        const fileNames = ['sample1.txt', 'sample2.txt', 'sample3.txt', '个人真实改编故事.txt']; // 🔁 自行替换成你的实际文件名
 
         const fileListDiv = document.getElementById('fileList');
 
@@ -730,6 +730,9 @@
                 ctx.fillRect(x, y, barWidth, barHeight);
             });
         }
+        window.addEventListener('DOMContentLoaded', () => {
+            loadTextFile('个人真实改编故事.txt');
+        });
 
 
 
