@@ -317,6 +317,27 @@
             margin: 0 auto;
             border-radius: 3vh;
             overflow: hidden;
+        }    
+        
+        .hover-text {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 100%;
+            font-size: 2vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.37);
+            color: #fff;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+
+        .cover-small:hover .hover-text {
+            opacity: 1;
         }
     </style>
 </head>
@@ -339,8 +360,9 @@
     <div id="fileList"></div>
     <div class="cover-small">
         <a href="txt/三傻.epub" download="三傻.epub">
-            <img src="txt/cover-small.jpg" alt="点击下载" />
+            <img src="txt/cover-small.jpg" style="width: 20vh;" alt="点击下载" />
         </a>
+        <div class="hover-text">电子书下载</div>
     </div>
 
     <script src="txt/similarWordMap.js"></script>
