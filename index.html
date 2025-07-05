@@ -15,7 +15,7 @@
             height: 100vh;
             overflow: hidden;
         }
-
+        
         #retainedZone {
             display: grid;
             grid-template-columns: repeat(16, 2.6vh);
@@ -36,9 +36,9 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 3vh;
-            height: 3.25vh;
-            width: 3.25vh;
+            font-size: 2.75vh;
+            height: 3vh;
+            width: 3vh;
             background: rgba(255, 170, 100, 0.2);
             color: #ffbb88;
             border-radius: 1vh;
@@ -48,7 +48,14 @@
         #retainedZone span:hover {
             background: rgba(100, 255, 180, 0.15);
             box-shadow: 0 0 0.5vh #39ff14;
-            transform: scale(1.1);
+            transform: scale(1.05);
+        }
+
+        .matched-char {
+            color: #39ff14;
+            background: rgba(0, 0, 0, 0.6);
+            text-shadow: 0 0 0.5vh #39ff14;
+            transform: scale(0.8);
         }
 
 
