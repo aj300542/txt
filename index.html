@@ -5,6 +5,15 @@
     <meta charset="UTF-8" />
     <title>打字连锁消除游戏</title>
     <style>
+        @font-face {
+            font-family: 'Nixiebold-boldbig';
+            src: url('fonts/Nixiebold-boldbig.woff2') format('woff2'),
+                url('fonts/Nixiebold-boldbig.woff') format('woff'),
+                url('fonts/Nixiebold-boldbig.ttf') format('truetype');
+            font-weight: normal;
+            font-style: normal;
+        }
+
         html,
         body {
             margin: 0;
@@ -15,7 +24,7 @@
             height: 100vh;
             overflow: hidden;
         }
-        
+
         #retainedZone {
             display: grid;
             grid-template-columns: repeat(16, 2.6vh);
@@ -287,7 +296,7 @@
             display: flex;
             justify-content: space-between;
             padding: 0 2vw;
-            z-index: 9999;
+            z-index: 1;
             pointer-events: auto;
         }
 
@@ -305,6 +314,7 @@
         .ui-buttons button:hover {
             background-color: rgba(0, 0, 0, 0.8);
         }
+
         .cover-small {
             position: absolute;
             top: 46vh;
@@ -339,6 +349,22 @@
         .cover-small:hover .hover-text {
             opacity: 1;
         }
+
+        #leaderboard {
+            position: fixed;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            right: 8vh;
+            top: 5vh;
+            width: 13vh;
+            background: rgba(255, 255, 255, 0.07);
+            color: #fb7c00;
+            padding: 2vh;
+            border-radius: 2vh;
+            font-family: 'Nixiebold-boldbig', Arial, sans-serif;
+        }
     </style>
 </head>
 
@@ -352,7 +378,7 @@
     </div>
     <input id="input" placeholder="输入字…" autocomplete="off" autofocus />
     <div id="comboCounter"></div>
-    <div id="scoreBoard">0</div>
+    <div id="scoreBoard"></div>
     <input type="file" id="fileInput" accept=".txt" />
     <div id="completionNotice" class="fade-in" style="display: none;">
         🎉 任务完成！
@@ -364,6 +390,12 @@
         </a>
         <div class="hover-text">三傻<br>电子书</div>
     </div>
+    <!-- 排行榜区域 -->
+    <div id="leaderboard">
+        <h3 style="margin:0 0 1vh 0;font-size:2.5vh;">🏆 排行榜</h3>
+        <ol id="leaderboard-list" style="padding-left:2.5vh;font-size:2vh;margin:0;"></ol>
+    </div>
+
 
     <script src="txt/similarWordMap.js"></script>
     <script src="txt/similarCharMap.js"></script>
@@ -397,18 +429,101 @@
 
         const fileListDiv = document.getElementById('fileList');
 
+        let lastInputIndex = 0;
+
+        // 记录输入位置到 localStorage
+        function saveLastInputIndex(index) {
+            localStorage.setItem('lastInputIndex', index);
+        }
+
+        // 恢复输入位置
+        function loadLastInputIndex() {
+            return parseInt(localStorage.getItem('lastInputIndex') || '0', 10);
+        }
+
+        // 排行榜数据
+        let leaderboard = JSON.parse(localStorage.getItem('leaderboard') || '[]');
+        // 初始化10条空数据
+        while (leaderboard.length < 10) leaderboard.push({ name: '---', score: 0 });
+        updateLeaderboardDisplay();
+
+        // 更新排行榜显示
+        function updateLeaderboardDisplay() {
+            const list = document.getElementById('leaderboard-list');
+            list.innerHTML = '';
+            leaderboard
+                .sort((a, b) => b.score - a.score)
+                .forEach((item, i) => {
+                    const li = document.createElement('li');
+                    li.textContent = `${item.name}：${item.score}`;
+                    list.appendChild(li);
+                });
+        }
+
+        // 检查是否新高分
+        function checkHighScore(finalScore) {
+            leaderboard.sort((a, b) => b.score - a.score);
+            if (finalScore > leaderboard[9].score) {
+                setTimeout(() => {
+                    const name = prompt('🎉 恭喜你打破排行榜！请输入你的名字：', '');
+                    if (name && name.trim()) {
+                        leaderboard.push({ name: name.trim().slice(0, 10), score: finalScore });
+                        leaderboard.sort((a, b) => b.score - a.score);
+                        leaderboard = leaderboard.slice(0, 10);
+                        localStorage.setItem('leaderboard', JSON.stringify(leaderboard));
+                        updateLeaderboardDisplay();
+                    }
+                }, 300); // 稍微延迟，避免和结算动画冲突
+            }
+        }
+
+        // 在游戏结束时调用
+        function showCompletionNotice() {
+            const notice = document.getElementById('completionNotice');
+            if (notice) {
+                notice.style.display = 'block';
+                setTimeout(() => notice.classList.add('show'), 500);
+                setTimeout(() => {
+                    notice.classList.remove('show');
+                    setTimeout(() => notice.style.display = 'none', 10000);
+                }, 5000);
+            }
+            checkHighScore(score); // 👈 增加高分检测
+        }
+
         fileNames.forEach(name => {
             const btn = document.createElement('button');
             btn.textContent = name.replace('.txt', '');
             btn.style.display = 'block';
             btn.style.marginBottom = '6px';
             btn.style.width = '100%';
-            btn.addEventListener('click', () => loadTextFile(name));
+
+            // 👇 就在这里加上你的清除逻辑和加载逻辑！
+            btn.addEventListener('click', () => {
+                // 💥 清除进度相关数据
+                localStorage.removeItem('lastInputIndex');
+                localStorage.removeItem('matchedStatus');
+                localStorage.removeItem('score');
+                localStorage.removeItem('combo');
+                localStorage.removeItem('comboHistory');
+                resetProgress();        // 💥 清空状态
+                loadTextFile(name);     // 🔁 从头加载选中文本
+
+                loadTextFile(name); // ⏮️ 重新加载文件并重头开始
+            });
+
             fileListDiv.appendChild(btn);
         });
 
+        // 📍 放在靠近 fileList 创建或 loadTextFile 定义的位置
+        function resetProgress() {
+            ['lastInputIndex', 'matchedStatus', 'score', 'combo', 'comboHistory'].forEach(key =>
+                localStorage.removeItem(key)
+            );
+        }
+
         function loadTextFile(filename) {
-            fetch(`txt/${filename}`)
+            return fetch(`txt/${filename}`)
                 .then(resp => resp.text())
                 .then(text => {
                     const cleaned = toHalfWidth(text)
@@ -417,9 +532,10 @@
                         .flatMap(w => /^[a-zA-Z0-9]+$/.test(w) ? [w] : [...w])
                         .filter(Boolean);
                     wordPool = cleaned;
-                    currentStartIndex = 0;
+
                     retainedZone.innerHTML = '';
-                    updateRetainedZone(0);
+                    updateRetainedZone(loadLastInputIndex());
+
                     score = 0;
                     combo = 0;
                     comboHistory = [];
@@ -428,6 +544,7 @@
                     console.log(`✅ 词库 [${filename}] 已载入，共 ${wordPool.length} 个元素`);
                 });
         }
+
 
         function toHalfWidth(str) {
             return str.replace(/[\uFF01-\uFF5E]/g, ch =>
@@ -469,6 +586,8 @@
 
             const toRemove = [];
 
+
+
             for (let i = 0; i < typed.length - 1; i++) {
                 const bigram = typed.substring(i, i + 2);
                 const nextIndex = getNextUnmatchedIndex();
@@ -495,6 +614,7 @@
                     input.value = cur;
                 }, 10000);
             }
+            saveLastInputIndex(currentStartIndex);
         }
 
         function isWordMatch(inputWord, targetWord) {
@@ -623,22 +743,56 @@
             }
         }
 
+        function loadLastState() {
+            currentStartIndex = parseInt(localStorage.getItem('lastInputIndex')) || 0;
+            const matchedStatus = JSON.parse(localStorage.getItem('matchedStatus') || '[]');
+            score = parseInt(localStorage.getItem('score')) || 0;
+            scoreBoard.textContent = score;
+            combo = parseInt(localStorage.getItem('combo')) || 0;
+            comboCounter.textContent = `Combo ×${combo}`;
+            comboHistory = JSON.parse(localStorage.getItem('comboHistory') || '[]');
+
+
+            updateRetainedZone(currentStartIndex);
+            const spans = retainedZone.querySelectorAll('span');
+            matchedStatus.forEach((status, i) => {
+                if (status === 'm') spans[i]?.classList.add('matched-char');
+                else if (status === 's') spans[i]?.classList.add('skipped-char');
+            });
+        }
 
 
         function updateScore(value) {
             score += value;
             scoreBoard.textContent = score;
+            localStorage.setItem('score', score); // 💾 保存分数
         }
 
         function updateComboDisplay() {
             if (combo > 0) {
                 comboCounter.textContent = `Combo ×${combo}`;
                 comboCounter.classList.add('combo-active');
+                comboHistory.push(combo);
+
+                if (comboHistory.length % 2 === 0) {
+                    renderComboCanvas();
+                }
+
                 setTimeout(() => comboCounter.classList.remove('combo-active'), 500);
             } else {
-                comboCounter.textContent = '✔️';
+                comboCounter.textContent = 'Combo ×0';
+                comboHistory.push(0);
+
+                if (comboHistory.length % 2 === 0) {
+                    renderComboCanvas();
+                }
             }
+
+            // ✅ 在连击更新后保存状态
+            localStorage.setItem('combo', combo);
+            localStorage.setItem('comboHistory', JSON.stringify(comboHistory));
         }
+
 
         let wordPool = [];
 
@@ -770,16 +924,21 @@
                 ctx.fillRect(x, y, barWidth, barHeight);
             });
         }
-        window.addEventListener('DOMContentLoaded', () => {
-            loadTextFile('个人真实改编故事.txt');
-        });
 
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadTextFile('个人真实改编故事.txt').then(() => {
+                loadLastState();         // 👈 恢复字符状态、matched/skipped
+                restoreScrollPosition(); // 👈 恢复滑块位置
+            });
+        });
 
 
     </script>
     <div class="ui-buttons">
         <button id="about-button">aj300</button>
         <button id="fullscreen-button">fullscreen</button>
+        <button id="end-score-button">结束计分</button>
     </div>
 
     <script>
@@ -793,6 +952,10 @@
 
         document.getElementById("about-button").addEventListener("click", () => {
             window.open("https://aj300542.github.io/", "_blank");
+        });
+        // 结束计分按钮逻辑
+        document.getElementById("end-score-button").addEventListener("click", () => {
+            checkHighScore(score);
         });
     </script>
 </body>
