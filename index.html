@@ -358,7 +358,7 @@
             flex-direction: column;
             right: 8vh;
             top: 5vh;
-            width: 13vh;
+            width: 16vh;
             background: rgba(255, 255, 255, 0.07);
             color: #fb7c00;
             padding: 2vh;
@@ -506,9 +506,9 @@
                 localStorage.removeItem('score');
                 localStorage.removeItem('combo');
                 localStorage.removeItem('comboHistory');
+                localStorage.setItem('lastUsedFile', name); // 记录文件名
                 resetProgress();        // 💥 清空状态
                 loadTextFile(name);     // 🔁 从头加载选中文本
-
                 loadTextFile(name); // ⏮️ 重新加载文件并重头开始
             });
 
@@ -927,9 +927,10 @@
 
 
         window.addEventListener('DOMContentLoaded', () => {
-            loadTextFile('个人真实改编故事.txt').then(() => {
-                loadLastState();         // 👈 恢复字符状态、matched/skipped
-                restoreScrollPosition(); // 👈 恢复滑块位置
+            const lastFile = localStorage.getItem('lastUsedFile') || '个人真实改编故事.txt';
+            loadTextFile(lastFile).then(() => {
+                loadLastState();         // 恢复字符状态
+                restoreScrollPosition(); // 恢复滑块位置
             });
         });
 
